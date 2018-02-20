@@ -22,6 +22,9 @@ Sensor::Sensor(uint8_t id, uint8_t gwId)
     _retries = 0;
     _handler = NULL;
 
+    _oldReceiveNonce = createNonce();
+    _nextReceiveNonce = createNonce();
+
     digitalWrite(SS, HIGH);
     pinMode(SS, OUTPUT);
 
