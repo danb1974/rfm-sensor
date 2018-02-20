@@ -109,7 +109,7 @@ void Sensor::onPacketReceived()
     case MsgType::Ack:
     {
         uint32_t ackNonce = readNonce(data);
-        if (size != 8 || ackNonce != _nextSendNonce)
+        if (size != 9 || ackNonce != _nextSendNonce)
             break;
 
         _nextSendNonce = readNonce(&data[4]);
@@ -121,7 +121,7 @@ void Sensor::onPacketReceived()
     case MsgType::Nack:
     {
         uint32_t nackNonce = readNonce(data);
-        if (size != 8 || nackNonce != _nextSendNonce)
+        if (size != 9 || nackNonce != _nextSendNonce)
             break;
 
         _nextSendNonce = readNonce(&data[4]);
@@ -155,9 +155,10 @@ uint32_t Sensor::createNonce()
 
 void Sensor::sendResponse(uint32_t nonce, bool ack)
 {
-    uint8_t data[9] = {ack ? MsgType::Ack : MsgType::Nack};
+    uint8_t data[10] = {ack ? MsgType::Ack : MsgType::Nack};
     writeNonce(&data[1], nonce);
     writeNonce(&data[5], _nextReceiveNonce);
+    data[9] = _packet.rssi;
     _radio.send(_gwId, data, sizeof(data));
     _radio.receiveBegin();
 }
