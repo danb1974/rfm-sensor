@@ -1,6 +1,27 @@
 #include "sensor.h"
 #include "hal.h"
 
+#define DEBUG 0
+
+#if DEBUG
+void debugHex(const char *prefix, uint8_t addr, uint8_t *data, uint8_t size)
+{
+    char aux[100];
+    sprintf(aux, "%s(%d):", prefix, addr);
+    Serial.print(aux);
+    while (size--)
+    {
+        uint8_t b = *data++;
+        if (b < 16)
+            Serial.print('0');
+        Serial.print(b, HEX);
+    }
+    Serial.println();
+}
+#else
+#define debugHex(a, b, c, d)
+#endif
+
 Sensor *self;
 
 typedef enum {
@@ -11,7 +32,8 @@ typedef enum {
 
 void radioInterrupt()
 {
-    self->interrupt();
+    if (self)
+        self->interrupt();
 }
 
 Sensor::Sensor(uint8_t id, uint8_t gwId)
@@ -38,7 +60,6 @@ Sensor::Sensor(uint8_t id, uint8_t gwId)
 
     self = this;
     attachInterrupt(0, radioInterrupt, RISING);
-    _radio.receiveBegin();
 }
 
 void Sensor::interrupt()
@@ -51,8 +72,9 @@ void Sensor::update()
 {
     if (_packet.size > 0 && _packet.from == _gwId)
     {
+        debugHex("RX", _packet.from, _packet.data, _packet.size);
         onPacketReceived();
-        _radio.receiveBegin();
+        _packet.size = 0;
     }
 
     if (_retries && millis() > _lastSendTime + RETRY_INTERVAL)
@@ -163,8 +185,8 @@ void Sensor::sendResponse(uint32_t nonce, bool ack)
     writeNonce(&data[1], nonce);
     writeNonce(&data[5], _nextReceiveNonce);
     data[9] = _packet.rssi;
+    debugHex("TX", _gwId, data, sizeof(data));
     _radio.send(_gwId, data, sizeof(data));
-    _radio.receiveBegin();
 }
 
 void Sensor::sendData()
@@ -172,8 +194,8 @@ void Sensor::sendData()
     if (!_data)
         return;
     writeNonce(&_data[1], _nextSendNonce);
+    debugHex("TX", _gwId, _data, sizeof(_size));
     _radio.send(_gwId, _data, _size);
-    _radio.receiveBegin();
     _lastSendTime = millis();
 }
 
