@@ -194,7 +194,7 @@ void Sensor::sendData()
     if (!_data)
         return;
     writeNonce(&_data[1], _nextSendNonce);
-    debugHex("TX", _gwId, _data, sizeof(_size));
+    debugHex("TX", _gwId, _data, _size);
     _radio.send(_gwId, _data, _size);
     _lastSendTime = millis();
 }
