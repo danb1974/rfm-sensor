@@ -73,6 +73,7 @@ void Sensor::update()
     if (_packet.size > 0 && _packet.from == _gwId)
     {
         debugHex("RX", _packet.from, _packet.data, _packet.size);
+        delayMicroseconds(75); //give a chance to start listening
         onPacketReceived();
         _packet.size = 0;
     }
