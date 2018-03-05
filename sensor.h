@@ -15,6 +15,7 @@ public:
   bool send(const uint8_t *data, uint8_t size);
   bool sendAndWait(const uint8_t *data, uint8_t size);
   void onMessage(DataReceivedHandler handler);
+  void init(const uint8_t* key);
 
 private:
   RFM69 _radio;

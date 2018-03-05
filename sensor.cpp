@@ -62,6 +62,11 @@ Sensor::Sensor(uint8_t id, uint8_t gwId)
     attachInterrupt(0, radioInterrupt, RISING);
 }
 
+void Sensor::init(const uint8_t *key)
+{
+    _radio.encrypt(key);
+}
+
 void Sensor::interrupt()
 {
     _packet.size = 0;
