@@ -15,7 +15,7 @@ public:
   bool send(const uint8_t *data, uint8_t size);
   bool sendAndWait(const uint8_t *data, uint8_t size);
   void onMessage(DataReceivedHandler handler);
-  void init(const uint8_t* key);
+  void init(const uint8_t *key);
 
 private:
   RFM69 _radio;
@@ -33,7 +33,9 @@ private:
   void sendData();
   void sendDone();
   void sendResponse(uint32_t nonce, bool ack);
-  uint32_t readNonce(const uint8_t *data);
+  uint32_t readLong(const uint8_t *data);
+  uint16_t readShort(const uint8_t *data);
   void writeNonce(uint8_t *data, uint32_t nonce);
   uint32_t createNonce();
+  void handlePacket(const uint8_t *data, uint8_t size);
 };

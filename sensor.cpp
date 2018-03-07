@@ -1,5 +1,7 @@
+#include <avr/wdt.h>
 #include "sensor.h"
 #include "hal.h"
+#include "SPIFlash.h"
 
 #define DEBUG 0
 
@@ -105,7 +107,7 @@ void Sensor::onPacketReceived()
     {
     case MsgType::Data:
     {
-        uint32_t nonce = readNonce(data);
+        uint32_t nonce = readLong(data);
         if (nonce == _oldReceiveNonce)
         {
             //already received this data
@@ -129,21 +131,17 @@ void Sensor::onPacketReceived()
             _nextReceiveNonce = createNonce();
         } while (_nextReceiveNonce == _oldReceiveNonce);
         sendResponse(nonce, true);
-
-        if (_handler)
-        {
-            _handler(data, size);
-        }
+        handlePacket(data, size);
     }
     break;
 
     case MsgType::Ack:
     {
-        uint32_t ackNonce = readNonce(data);
+        uint32_t ackNonce = readLong(data);
         if (size != 9 || ackNonce != _nextSendNonce)
             break;
 
-        _nextSendNonce = readNonce(&data[4]);
+        _nextSendNonce = readLong(&data[4]);
         sendDone();
         _sendOk = true;
     }
@@ -151,24 +149,31 @@ void Sensor::onPacketReceived()
 
     case MsgType::Nack:
     {
-        uint32_t nackNonce = readNonce(data);
+        uint32_t nackNonce = readLong(data);
         if (size != 9 || nackNonce != _nextSendNonce)
             break;
 
-        _nextSendNonce = readNonce(&data[4]);
+        _nextSendNonce = readLong(&data[4]);
         sendData();
     }
     break;
     }
 }
 
-uint32_t Sensor::readNonce(const uint8_t *data)
+uint32_t Sensor::readLong(const uint8_t *data)
 {
-    uint32_t nonce = *data++;
-    nonce |= (uint32_t)*data++ << 8;
-    nonce |= (uint32_t)*data++ << 16;
-    nonce |= (uint32_t)*data++ << 24;
-    return nonce;
+    uint32_t value = *data++;
+    value |= (uint32_t)*data++ << 8;
+    value |= (uint32_t)*data++ << 16;
+    value |= (uint32_t)*data++ << 24;
+    return value;
+}
+
+uint16_t Sensor::readShort(const uint8_t *data)
+{
+    uint16_t value = *data++;
+    value |= (uint32_t)*data++ << 8;
+    return value;
 }
 
 void Sensor::writeNonce(uint8_t *data, uint32_t nonce)
@@ -241,4 +246,67 @@ bool Sensor::sendAndWait(const uint8_t *data, uint8_t size)
 void Sensor::onMessage(DataReceivedHandler handler)
 {
     _handler = handler;
+}
+
+SPIFlash flash(8);
+
+void Sensor::handlePacket(const uint8_t *data, uint8_t size)
+{
+    switch (*data)
+    {
+    case 0xCA:
+    {
+        data++;
+        size--;
+
+        //begin OTA
+        if (!flash.initialize())
+        {
+            uint8_t error[2] = {0xCA, 0xE1}; //no flash error
+            send(error, sizeof(data));
+            return;
+        }
+
+        flash.blockErase32K(0);
+        while (flash.busy())
+        {
+            //wait for erase to finish
+            update();
+        }
+        uint8_t reply = 0xCA;
+        send(&reply, 1);
+    }
+    break;
+    case 0xCB: //write at address
+    {
+        data++;
+        size--;
+
+        while (flash.busy())
+        {
+            //wait for previous operation
+            update();
+        }
+
+        //write OTA part
+        uint16_t flashAddress = readShort(data);
+        data += 2;
+        size -= 2;
+        flash.writeBytes(flashAddress, data, size);
+    }
+    break;
+    case 0xCC: //reset
+    {
+        wdt_enable(WDTO_15MS);
+        while (1)
+        {
+            // wait for watchdog reset
+        }
+    }
+    break;
+    default:
+        if (_handler)
+            _handler(data, size);
+        break;
+    }
 }
