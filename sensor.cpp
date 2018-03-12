@@ -1,4 +1,5 @@
 #include <avr/wdt.h>
+#include <eeprom.h>
 #include "sensor.h"
 #include "hal.h"
 #include "SPIFlash.h"
@@ -26,6 +27,15 @@ void debugHex(const char *prefix, uint8_t addr, uint8_t *data, uint8_t size)
 
 Sensor *self;
 
+#define CONFIG_MAGIC_KEY 0xDA1739EC
+typedef struct
+{
+    uint32_t magicKey;
+    uint8_t key[16];
+    uint8_t id;
+    uint8_t gwId;
+} Config;
+
 typedef enum {
     Data = 0x01,
     Ack = 0x02,
@@ -38,8 +48,8 @@ void radioInterrupt()
         self->interrupt();
 }
 
-Sensor::Sensor(uint8_t id, uint8_t gwId)
-    : _radio(spi_Transfer, millis, true), _id(id), _gwId(gwId)
+Sensor::Sensor()
+    : _radio(spi_Transfer, millis, true)
 {
     _data = NULL;
     _size = 0;
@@ -57,16 +67,52 @@ Sensor::Sensor(uint8_t id, uint8_t gwId)
     SPI.setDataMode(SPI_MODE0);
     SPI.setBitOrder(MSBFIRST);
     SPI.setClockDivider(SPI_CLOCK_DIV4);
-
-    _radio.initialize(RF69_433MHZ, id);
-
-    self = this;
-    attachInterrupt(0, radioInterrupt, RISING);
 }
 
-void Sensor::init(const uint8_t *key)
+void Sensor::init(uint8_t id, uint8_t gwId, const uint8_t *key)
 {
-    _radio.encrypt(key);
+    Config config;
+    config.magicKey = CONFIG_MAGIC_KEY;
+    config.id = id;
+    config.gwId = gwId;
+    memcpy(config.key, key, 16);
+    uint8_t *cfg = (uint8_t *)&config;
+    for (uint8_t i = 0; i < sizeof(config); i++)
+    {
+        EEPROM.write(i, *cfg++);
+    }
+
+    _id = id;
+    _gwId = gwId;
+    _radio.initialize(RF69_433MHZ, id);
+    self = this;
+    attachInterrupt(0, radioInterrupt, RISING);
+
+    if (key)
+    {
+        _radio.encrypt(key);
+    }
+}
+
+void Sensor::init()
+{
+    EEPROM.begin();
+
+    Config config;
+    uint8_t *to = (uint8_t *)&config;
+    for (uint8_t i = 0; i < sizeof(config); i++)
+    {
+        *to++ = EEPROM.read(i);
+    }
+
+    if (config.magicKey == CONFIG_MAGIC_KEY)
+    {
+        init(config.id, config.gwId, config.key);
+    }
+    else
+    {
+        init(2, 1, NULL);
+    }
 }
 
 void Sensor::interrupt()

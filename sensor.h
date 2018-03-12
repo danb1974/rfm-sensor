@@ -8,18 +8,19 @@ typedef void (*DataReceivedHandler)(const uint8_t *data, uint8_t length);
 class Sensor
 {
 public:
-  Sensor(uint8_t id, uint8_t gwId = 1);
+  Sensor();
 
+  void init();
+  void init(uint8_t id, uint8_t gwId, const uint8_t *key);
   void interrupt();
   void update();
   bool send(const uint8_t *data, uint8_t size);
   bool sendAndWait(const uint8_t *data, uint8_t size);
   void onMessage(DataReceivedHandler handler);
-  void init(const uint8_t *key);
 
 private:
   RFM69 _radio;
-  const uint8_t _id, _gwId;
+  uint8_t _id, _gwId;
   RfmPacket _packet;
   uint32_t _nextSendNonce;
   DataReceivedHandler _handler;
