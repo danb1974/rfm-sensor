@@ -69,17 +69,20 @@ Sensor::Sensor()
     SPI.setClockDivider(SPI_CLOCK_DIV4);
 }
 
-void Sensor::init(uint8_t id, uint8_t gwId, const uint8_t *key)
+void Sensor::init(uint8_t id, uint8_t gwId, const uint8_t *key, bool write)
 {
-    Config config;
-    config.magicKey = CONFIG_MAGIC_KEY;
-    config.id = id;
-    config.gwId = gwId;
-    memcpy(config.key, key, 16);
-    uint8_t *cfg = (uint8_t *)&config;
-    for (uint8_t i = 0; i < sizeof(config); i++)
+    if (write)
     {
-        EEPROM.write(i, *cfg++);
+        Config config;
+        config.magicKey = CONFIG_MAGIC_KEY;
+        config.id = id;
+        config.gwId = gwId;
+        memcpy(config.key, key, 16);
+        uint8_t *cfg = (uint8_t *)&config;
+        for (uint8_t i = 0; i < sizeof(config); i++)
+        {
+            EEPROM.write(i, *cfg++);
+        }
     }
 
     _id = id;
@@ -107,11 +110,11 @@ void Sensor::init()
 
     if (config.magicKey == CONFIG_MAGIC_KEY)
     {
-        init(config.id, config.gwId, config.key);
+        init(config.id, config.gwId, config.key, false);
     }
     else
     {
-        init(2, 1, NULL);
+        init(2, 1, NULL, false);
     }
 }
 

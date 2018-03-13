@@ -11,7 +11,7 @@ public:
   Sensor();
 
   void init();
-  void init(uint8_t id, uint8_t gwId, const uint8_t *key);
+  void init(uint8_t id, uint8_t gwId, const uint8_t *key, bool write = true);
   void interrupt();
   void update();
   bool send(const uint8_t *data, uint8_t size);
