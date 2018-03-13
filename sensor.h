@@ -8,7 +8,7 @@ typedef void (*DataReceivedHandler)(const uint8_t *data, uint8_t length);
 class Sensor
 {
 public:
-  Sensor();
+  Sensor(bool useInterrupts = true);
 
   void init();
   void init(uint8_t id, uint8_t gwId, const uint8_t *key, bool write = true);
@@ -19,12 +19,12 @@ public:
   void onMessage(DataReceivedHandler handler);
 
 private:
+  bool _useInterrupts;
   RFM69 _radio;
   uint8_t _id, _gwId;
   RfmPacket _packet;
   uint32_t _nextSendNonce;
   DataReceivedHandler _handler;
-  volatile bool _int;
 
   uint32_t _oldReceiveNonce, _nextReceiveNonce;
   uint8_t *_data, _size, _retries;

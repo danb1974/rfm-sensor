@@ -48,8 +48,9 @@ void radioInterrupt()
         self->interrupt();
 }
 
-Sensor::Sensor()
-    : _radio(spi_Transfer, millis, true)
+Sensor::Sensor(bool useInterrupts)
+    : _useInterrupts(useInterrupts),
+      _radio(spi_Transfer, millis, true)
 {
     _data = NULL;
     _size = 0;
@@ -88,8 +89,12 @@ void Sensor::init(uint8_t id, uint8_t gwId, const uint8_t *key, bool write)
     _id = id;
     _gwId = gwId;
     _radio.initialize(RF69_433MHZ, id);
-    self = this;
-    attachInterrupt(0, radioInterrupt, RISING);
+
+    if (_useInterrupts)
+    {
+        self = this;
+        attachInterrupt(0, radioInterrupt, RISING);
+    }
 
     if (key)
     {
@@ -120,21 +125,23 @@ void Sensor::init()
 
 void Sensor::interrupt()
 {
-    _int = true;
+    _packet.size = 0;
+    _radio.receive(_packet);
 }
 
 void Sensor::update()
 {
-    if (_int)
+    if (!_useInterrupts)
     {
-        _int = false;
         _packet.size = 0;
-        _radio.interrupt(_packet);
-        if (_packet.size > 0 && _packet.from == _gwId)
-        {
-            debugHex("RX", _packet.from, _packet.data, _packet.size);
-            onPacketReceived();
-        }
+        _radio.receive(_packet);
+    }
+
+    if (_packet.size > 0 && _packet.from == _gwId)
+    {
+        debugHex("RX", _packet.from, _packet.data, _packet.size);
+        onPacketReceived();
+        _packet.size = 0;
     }
 
     if (_retries && millis() > _lastSendTime + RETRY_INTERVAL)
