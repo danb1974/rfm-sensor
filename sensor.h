@@ -24,6 +24,7 @@ private:
   RfmPacket _packet;
   uint32_t _nextSendNonce;
   DataReceivedHandler _handler;
+  volatile bool _int;
 
   uint32_t _oldReceiveNonce, _nextReceiveNonce;
   uint8_t *_data, _size, _retries;

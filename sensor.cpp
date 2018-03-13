@@ -117,17 +117,21 @@ void Sensor::init()
 
 void Sensor::interrupt()
 {
-    _packet.size = 0;
-    _radio.interrupt(_packet);
+    _int = true;
 }
 
 void Sensor::update()
 {
-    if (_packet.size > 0 && _packet.from == _gwId)
+    if (_int)
     {
-        debugHex("RX", _packet.from, _packet.data, _packet.size);
-        onPacketReceived();
+        _int = false;
         _packet.size = 0;
+        _radio.interrupt(_packet);
+        if (_packet.size > 0 && _packet.from == _gwId)
+        {
+            debugHex("RX", _packet.from, _packet.data, _packet.size);
+            onPacketReceived();
+        }
     }
 
     if (_retries && millis() > _lastSendTime + RETRY_INTERVAL)
