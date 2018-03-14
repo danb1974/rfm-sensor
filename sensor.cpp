@@ -27,13 +27,16 @@ void debugHex(const char *prefix, uint8_t addr, uint8_t *data, uint8_t size)
 
 Sensor *self;
 
-#define CONFIG_MAGIC_KEY 0xDA1739EC
+#define CONFIG_MAGIC_KEY_V1 0xDA1739EC
+#define CONFIG_MAGIC_KEY_V2 0x3A157FA4
 typedef struct
 {
     uint32_t magicKey;
     uint8_t key[16];
     uint8_t id;
     uint8_t gwId;
+#define CONFIG_FLAG_IS_HW 0x01
+    uint8_t flags;
 } Config;
 
 typedef enum {
@@ -50,7 +53,7 @@ void radioInterrupt()
 
 Sensor::Sensor(bool useInterrupts)
     : _useInterrupts(useInterrupts),
-      _radio(spi_Transfer, millis, true)
+      _radio(spi_Transfer, millis)
 {
     _data = NULL;
     _size = 0;
@@ -70,14 +73,15 @@ Sensor::Sensor(bool useInterrupts)
     SPI.setClockDivider(SPI_CLOCK_DIV4);
 }
 
-void Sensor::init(uint8_t id, uint8_t gwId, const uint8_t *key, bool write)
+void Sensor::init(uint8_t id, uint8_t gwId, const uint8_t *key, bool isRfm69Hw, bool write)
 {
     if (write)
     {
         Config config;
-        config.magicKey = CONFIG_MAGIC_KEY;
+        config.magicKey = CONFIG_MAGIC_KEY_V2;
         config.id = id;
         config.gwId = gwId;
+        config.flags = isRfm69Hw ? CONFIG_FLAG_IS_HW : 0;
         memcpy(config.key, key, 16);
         uint8_t *cfg = (uint8_t *)&config;
         for (uint8_t i = 0; i < sizeof(config); i++)
@@ -88,7 +92,7 @@ void Sensor::init(uint8_t id, uint8_t gwId, const uint8_t *key, bool write)
 
     _id = id;
     _gwId = gwId;
-    _radio.initialize(RF69_433MHZ, id);
+    _radio.initialize(RF69_433MHZ, id, 1, isRfm69Hw);
 
     if (_useInterrupts)
     {
@@ -113,9 +117,14 @@ void Sensor::init()
         *to++ = EEPROM.read(i);
     }
 
-    if (config.magicKey == CONFIG_MAGIC_KEY)
+    if (config.magicKey == CONFIG_MAGIC_KEY_V1)
     {
-        init(config.id, config.gwId, config.key, false);
+        config.flags = CONFIG_FLAG_IS_HW;
+        config.magicKey = CONFIG_MAGIC_KEY_V2;
+    }
+    if (config.magicKey == CONFIG_MAGIC_KEY_V2)
+    {
+        init(config.id, config.gwId, config.key, (config.flags & CONFIG_FLAG_IS_HW) != 0);
     }
     else
     {
