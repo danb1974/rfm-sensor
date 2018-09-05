@@ -3,9 +3,10 @@
 #include "sensor.h"
 #include "hal.h"
 #include "SPIFlash.h"
-#include "LowPower.h"
 
 #define DEBUG 0
+
+SPIFlash flash(8);
 
 #if DEBUG
 void debugHex(const char *prefix, uint8_t addr, uint8_t *data, uint8_t size)
@@ -28,8 +29,7 @@ void debugHex(const char *prefix, uint8_t addr, uint8_t *data, uint8_t size)
 
 Sensor *self;
 
-#define CONFIG_MAGIC_KEY_V1 0xDA1739EC
-#define CONFIG_MAGIC_KEY_V2 0x3A157FA4
+#define CONFIG_MAGIC_KEY 0x3A157FA4
 typedef struct
 {
     uint32_t magicKey;
@@ -40,7 +40,8 @@ typedef struct
     uint8_t flags;
 } Config;
 
-typedef enum {
+typedef enum
+{
     Data = 0x01,
     Ack = 0x02,
     Nack = 0x03,
@@ -79,15 +80,28 @@ void Sensor::init(uint8_t id, uint8_t gwId, const uint8_t *key, bool isRfm69Hw, 
     if (write)
     {
         Config config;
-        config.magicKey = CONFIG_MAGIC_KEY_V2;
+        config.magicKey = CONFIG_MAGIC_KEY;
         config.id = id;
         config.gwId = gwId;
         config.flags = isRfm69Hw ? CONFIG_FLAG_IS_HW : 0;
         memcpy(config.key, key, 16);
-        uint8_t *cfg = (uint8_t *)&config;
-        for (uint8_t i = 0; i < sizeof(config); i++)
+
+        if (flash.initialize())
         {
-            EEPROM.write(i, *cfg++);
+            flash.blockErase4K(CONFIG_FLASH_ADDRESS);
+            while (flash.busy()) { }
+            flash.writeBytes(CONFIG_FLASH_ADDRESS, &config, sizeof(config));
+            while (flash.busy()) { }
+            flash.sleep();
+        }
+        else
+        {
+            EEPROM.begin();
+            uint8_t *cfg = (uint8_t *)&config;
+            for (uint8_t i = 0; i < sizeof(config); i++)
+            {
+                EEPROM.write(i, *cfg++);
+            }
         }
     }
 
@@ -109,23 +123,28 @@ void Sensor::init(uint8_t id, uint8_t gwId, const uint8_t *key, bool isRfm69Hw, 
 
 void Sensor::init()
 {
-    EEPROM.begin();
-
+    bool flashReadFailed = false;
     Config config;
-    uint8_t *to = (uint8_t *)&config;
-    for (uint8_t i = 0; i < sizeof(config); i++)
+
+    if (flash.initialize())
     {
-        *to++ = EEPROM.read(i);
+        flash.readBytes(CONFIG_FLASH_ADDRESS, &config, sizeof(config));
+        flashReadFailed = config.magicKey != CONFIG_MAGIC_KEY;
     }
 
-    if (config.magicKey == CONFIG_MAGIC_KEY_V1)
+    if (flashReadFailed)
     {
-        config.flags = CONFIG_FLAG_IS_HW;
-        config.magicKey = CONFIG_MAGIC_KEY_V2;
+        EEPROM.begin();
+        uint8_t *to = (uint8_t *)&config;
+        for (uint8_t i = 0; i < sizeof(config); i++)
+        {
+            *to++ = EEPROM.read(i);
+        }
     }
-    if (config.magicKey == CONFIG_MAGIC_KEY_V2)
+
+    if (config.magicKey == CONFIG_MAGIC_KEY)
     {
-        init(config.id, config.gwId, config.key, (config.flags & CONFIG_FLAG_IS_HW) != 0);
+        init(config.id, config.gwId, config.key, (config.flags & CONFIG_FLAG_IS_HW) != 0, flashReadFailed);
     }
     else
     {
@@ -318,8 +337,6 @@ void Sensor::onMessage(DataReceivedHandler handler)
     _handler = handler;
 }
 
-SPIFlash flash(8);
-
 void Sensor::handlePacket(const uint8_t *data, uint8_t size)
 {
     switch (*data)
@@ -379,65 +396,4 @@ void Sensor::handlePacket(const uint8_t *data, uint8_t size)
             _handler(data, size);
         break;
     }
-}
-
-void Sensor::powerDown()
-{
-    _radio.sleep();
-}
-
-void Sensor::powerUp()
-{
-    _radio.wake();
-}
-
-void Sensor::sleep(uint16_t seconds)
-{
-    _seconds = seconds;
-
-    if (_seconds == 0)
-    {
-        LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);
-    }
-
-    while (_seconds > 8)
-    {
-        LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
-        _seconds -= 8;
-    }
-
-    while (_seconds > 4)
-    {
-        LowPower.powerDown(SLEEP_4S, ADC_OFF, BOD_OFF);
-        _seconds -= 4;
-    }
-
-    while (_seconds > 2)
-    {
-        LowPower.powerDown(SLEEP_2S, ADC_OFF, BOD_OFF);
-        _seconds -= 2;
-    }
-
-    while (_seconds > 0)
-    {
-        LowPower.powerDown(SLEEP_1S, ADC_OFF, BOD_ON);
-        _seconds -= 1;
-    }
-}
-
-void Sensor::wake()
-{
-    _seconds = 0;
-}
-
-uint16_t Sensor::readVoltage()
-{
-    ADMUX = _BV(REFS0) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
-    delay(2);
-    ADCSRA |= _BV(ADSC);
-    while (bit_is_set(ADCSRA, ADSC))
-    {
-        // wait for ADC
-    }
-    return 1126400 / ADC;
 }

@@ -1,7 +1,14 @@
 #include <Rfm69.h>
 
-#define SEND_RETRIES 10
-#define RETRY_INTERVAL 50
+#define SEND_RETRIES 5
+#define RETRY_INTERVAL 200
+
+#ifndef CONFIG_FLASH_SIZE
+#define CONFIG_FLASH_SIZE (512UL * 1024UL)
+#endif
+#ifndef CONFIG_FLASH_ADDRESS
+#define CONFIG_FLASH_ADDRESS (CONFIG_FLASH_SIZE - 4096UL)
+#endif
 
 typedef void (*DataReceivedHandler)(const uint8_t *data, uint8_t length);
 
@@ -17,11 +24,6 @@ public:
   bool send(const uint8_t *data, uint8_t size);
   bool sendAndWait(const uint8_t *data, uint8_t size);
   void onMessage(DataReceivedHandler handler);
-  uint16_t readVoltage();
-  void powerDown();
-  void powerUp();
-  void sleep(uint16_t seconds);
-  void wake();
 
 private:
   bool _useInterrupts;
@@ -30,7 +32,6 @@ private:
   RfmPacket _packet;
   uint32_t _nextSendNonce;
   DataReceivedHandler _handler;
-  volatile int16_t _seconds;
 
   uint32_t _oldReceiveNonce, _nextReceiveNonce;
   uint8_t *_data, _size, _retries;
