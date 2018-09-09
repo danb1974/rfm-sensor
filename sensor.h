@@ -1,7 +1,11 @@
 #include <Rfm69.h>
 
+#ifndef SEND_RETRIES
 #define SEND_RETRIES 5
+#endif
+#ifndef RETRY_INTERVAL
 #define RETRY_INTERVAL 200
+#endif
 
 #ifndef CONFIG_FLASH_SIZE
 #define CONFIG_FLASH_SIZE (512UL * 1024UL)
