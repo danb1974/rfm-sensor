@@ -1,5 +1,6 @@
 #include <avr/wdt.h>
 #include <eeprom.h>
+#include <LowPower.h>
 #include "sensor.h"
 #include "hal.h"
 #include "SPIFlash.h"
@@ -396,4 +397,60 @@ void Sensor::handlePacket(const uint8_t *data, uint8_t size)
             _handler(data, size);
         break;
     }
+}
+
+void Sensor::powerDown()	
+{	
+    _radio.sleep();	
+}	
+
+void Sensor::powerUp()	
+{	
+    _radio.wake();	
+}	
+
+void Sensor::sleep(uint16_t seconds)	
+{	
+    _seconds = seconds;	
+     if (_seconds == 0)	
+    {	
+        LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);	
+    }	
+     while (_seconds > 8)	
+    {	
+        LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);	
+        _seconds -= 8;	
+    }	
+     while (_seconds > 4)	
+    {	
+        LowPower.powerDown(SLEEP_4S, ADC_OFF, BOD_OFF);	
+        _seconds -= 4;	
+    }	
+     while (_seconds > 2)	
+    {	
+        LowPower.powerDown(SLEEP_2S, ADC_OFF, BOD_OFF);	
+        _seconds -= 2;	
+    }	
+     while (_seconds > 0)	
+    {	
+        LowPower.powerDown(SLEEP_1S, ADC_OFF, BOD_ON);	
+        _seconds -= 1;	
+    }	
+}	
+
+void Sensor::wake()	
+{	
+    _seconds = 0;	
+}	
+
+uint16_t Sensor::readVoltage()	
+{	
+    ADMUX = _BV(REFS0) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);	
+    delay(2);	
+    ADCSRA |= _BV(ADSC);	
+    while (bit_is_set(ADCSRA, ADSC))	
+    {	
+        // wait for ADC	
+    }	
+    return 1126400 / ADC;	
 }

@@ -28,6 +28,11 @@ public:
   bool send(const uint8_t *data, uint8_t size);
   bool sendAndWait(const uint8_t *data, uint8_t size);
   void onMessage(DataReceivedHandler handler);
+  uint16_t readVoltage();	
+  void powerDown();	
+  void powerUp();	
+  void sleep(uint16_t seconds);	
+  void wake();
 
 private:
   bool _useInterrupts;
@@ -41,6 +46,7 @@ private:
   uint8_t *_data, _size, _retries;
   uint32_t _lastSendTime;
   bool _sendOk;
+  volatile int16_t _seconds;
 
   void onPacketReceived();
   void sendData();
