@@ -174,7 +174,7 @@ void Sensor::update()
         _packet.size = 0;
     }
 
-    if (_retries && millis() > _lastSendTime + RETRY_INTERVAL)
+    if (_retries && millis() - _lastSendTime > RETRY_INTERVAL)
     {
         _retries--;
         if (_retries == 0)
