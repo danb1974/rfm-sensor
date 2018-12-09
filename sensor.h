@@ -28,11 +28,13 @@ public:
   bool send(const uint8_t *data, uint8_t size);
   bool sendAndWait(const uint8_t *data, uint8_t size);
   void onMessage(DataReceivedHandler handler);
-  uint16_t readVoltage();	
-  void powerDown();	
-  void powerUp();	
-  void sleep(uint16_t seconds);	
+  uint16_t readVoltage();
+  void powerDown();
+  void powerUp();
+#ifndef SENSOR_NO_SLEEP
+  void sleep(uint16_t seconds);
   void wake();
+#endif
 
 private:
   bool _useInterrupts;
@@ -46,7 +48,9 @@ private:
   uint8_t *_data, _size, _retries;
   uint32_t _lastSendTime;
   bool _sendOk;
+#ifndef SENSOR_NO_SLEEP
   volatile int16_t _seconds;
+#endif
 
   void onPacketReceived();
   void sendData();

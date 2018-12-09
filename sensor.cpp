@@ -1,13 +1,20 @@
 #include <avr/wdt.h>
-#include <eeprom.h>
-#include <LowPower.h>
+#include <avr/eeprom.h>
 #include "sensor.h"
 #include "hal.h"
+#ifndef SENSOR_NO_OTA
 #include "SPIFlash.h"
+#endif
+
+#ifndef SENSOR_NO_SLEEP
+#include <LowPower.h>
+#endif
 
 #define DEBUG 0
 
+#ifndef SENSOR_NO_OTA
 SPIFlash flash(8);
+#endif
 
 #if DEBUG
 void debugHex(const char *prefix, uint8_t addr, uint8_t *data, uint8_t size)
@@ -87,22 +94,23 @@ void Sensor::init(uint8_t id, uint8_t gwId, const uint8_t *key, bool isRfm69Hw, 
         config.flags = isRfm69Hw ? CONFIG_FLAG_IS_HW : 0;
         memcpy(config.key, key, 16);
 
+#ifndef SENSOR_NO_OTA
         if (flash.initialize())
         {
             flash.blockErase4K(CONFIG_FLASH_ADDRESS);
-            while (flash.busy()) { }
+            while (flash.busy())
+            {
+            }
             flash.writeBytes(CONFIG_FLASH_ADDRESS, &config, sizeof(config));
-            while (flash.busy()) { }
+            while (flash.busy())
+            {
+            }
             flash.sleep();
         }
         else
+#endif
         {
-            EEPROM.begin();
-            uint8_t *cfg = (uint8_t *)&config;
-            for (uint8_t i = 0; i < sizeof(config); i++)
-            {
-                EEPROM.write(i, *cfg++);
-            }
+            eeprom_write_block(&config, 0, sizeof(config));
         }
     }
 
@@ -124,23 +132,20 @@ void Sensor::init(uint8_t id, uint8_t gwId, const uint8_t *key, bool isRfm69Hw, 
 
 void Sensor::init()
 {
-    bool flashReadFailed = false;
+    bool flashReadFailed = true;
     Config config;
 
+#ifndef SENSOR_NO_OTA
     if (flash.initialize())
     {
         flash.readBytes(CONFIG_FLASH_ADDRESS, &config, sizeof(config));
         flashReadFailed = config.magicKey != CONFIG_MAGIC_KEY;
     }
+#endif
 
     if (flashReadFailed)
     {
-        EEPROM.begin();
-        uint8_t *to = (uint8_t *)&config;
-        for (uint8_t i = 0; i < sizeof(config); i++)
-        {
-            *to++ = EEPROM.read(i);
-        }
+        eeprom_read_block(&config, 0, sizeof(config));
     }
 
     if (config.magicKey == CONFIG_MAGIC_KEY)
@@ -342,6 +347,7 @@ void Sensor::handlePacket(const uint8_t *data, uint8_t size)
 {
     switch (*data)
     {
+#ifndef SENSOR_NO_OTA
     case 0xCA:
     {
         data++;
@@ -383,6 +389,7 @@ void Sensor::handlePacket(const uint8_t *data, uint8_t size)
         flash.writeBytes(flashAddress, data, size);
     }
     break;
+#endif
     case 0xCC: //reset
     {
         wdt_enable(WDTO_15MS);
@@ -399,58 +406,62 @@ void Sensor::handlePacket(const uint8_t *data, uint8_t size)
     }
 }
 
-void Sensor::powerDown()	
-{	
-    _radio.sleep();	
-}	
+void Sensor::powerDown()
+{
+    _radio.sleep();
+}
 
-void Sensor::powerUp()	
-{	
-    _radio.wake();	
-}	
+void Sensor::powerUp()
+{
+    _radio.wake();
+}
 
-void Sensor::sleep(uint16_t seconds)	
-{	
-    _seconds = seconds;	
-     if (_seconds == 0)	
-    {	
-        LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);	
-    }	
-     while (_seconds > 8)	
-    {	
-        LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);	
-        _seconds -= 8;	
-    }	
-     while (_seconds > 4)	
-    {	
-        LowPower.powerDown(SLEEP_4S, ADC_OFF, BOD_OFF);	
-        _seconds -= 4;	
-    }	
-     while (_seconds > 2)	
-    {	
-        LowPower.powerDown(SLEEP_2S, ADC_OFF, BOD_OFF);	
-        _seconds -= 2;	
-    }	
-     while (_seconds > 0)	
-    {	
-        LowPower.powerDown(SLEEP_1S, ADC_OFF, BOD_ON);	
-        _seconds -= 1;	
-    }	
-}	
+#ifndef SENSOR_NO_SLEEP
 
-void Sensor::wake()	
-{	
-    _seconds = 0;	
-}	
+void Sensor::sleep(uint16_t seconds)
+{
+    _seconds = seconds;
+    if (_seconds == 0)
+    {
+        LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);
+    }
+    while (_seconds > 8)
+    {
+        LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
+        _seconds -= 8;
+    }
+    while (_seconds > 4)
+    {
+        LowPower.powerDown(SLEEP_4S, ADC_OFF, BOD_OFF);
+        _seconds -= 4;
+    }
+    while (_seconds > 2)
+    {
+        LowPower.powerDown(SLEEP_2S, ADC_OFF, BOD_OFF);
+        _seconds -= 2;
+    }
+    while (_seconds > 0)
+    {
+        LowPower.powerDown(SLEEP_1S, ADC_OFF, BOD_ON);
+        _seconds -= 1;
+    }
+}
 
-uint16_t Sensor::readVoltage()	
-{	
-    ADMUX = _BV(REFS0) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);	
-    delay(2);	
-    ADCSRA |= _BV(ADSC);	
-    while (bit_is_set(ADCSRA, ADSC))	
-    {	
-        // wait for ADC	
-    }	
-    return 1126400 / ADC;	
+void Sensor::wake()
+{
+    _seconds = 0;
+}
+
+#endif
+
+uint16_t Sensor::readVoltage()
+{
+    ADMUX = _BV(REFS0) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
+    delay(2);
+    ADCSRA |= _BV(ADSC);
+    while (bit_is_set(ADCSRA, ADSC))
+    {
+        // wait for ADC
+    }
+    return 1126400 / ADC;
 }
