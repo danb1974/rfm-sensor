@@ -1,3 +1,6 @@
+#ifndef __SENSOR_H__
+#define __SENSOR_H__
+
 #include <Rfm69.h>
 
 #ifndef SEND_RETRIES
@@ -19,7 +22,11 @@ typedef void (*DataReceivedHandler)(const uint8_t *data, uint8_t length);
 class Sensor
 {
 public:
+#ifndef SENSOR_NO_DEFAULT_SPI
   Sensor(bool useInterrupts = true);
+#else
+  Sensor(spiTransferFunction spiTransfer, bool useInterrupts = true);
+#endif
 
   void init();
   void init(uint8_t id, uint8_t gwId, const uint8_t *key, bool isRfm69Hw = true, bool write = true);
@@ -62,3 +69,5 @@ private:
   uint32_t createNonce();
   void handlePacket(const uint8_t *data, uint8_t size);
 };
+
+#endif

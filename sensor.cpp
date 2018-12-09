@@ -61,9 +61,15 @@ void radioInterrupt()
         self->interrupt();
 }
 
+#ifndef SENSOR_NO_DEFAULT_SPI
 Sensor::Sensor(bool useInterrupts)
     : _useInterrupts(useInterrupts),
       _radio(spi_Transfer, millis)
+#else
+Sensor::Sensor(spiTransferFunction spiTransfer, bool useInterrupts)
+    : _useInterrupts(useInterrupts),
+      _radio(spiTransfer, millis)
+#endif
 {
     _data = NULL;
     _size = 0;
@@ -77,10 +83,12 @@ Sensor::Sensor(bool useInterrupts)
     digitalWrite(SS, HIGH);
     pinMode(SS, OUTPUT);
 
+#ifndef SENSOR_NO_DEFAULT_SPI
     SPI.begin();
     SPI.setDataMode(SPI_MODE0);
     SPI.setBitOrder(MSBFIRST);
     SPI.setClockDivider(SPI_CLOCK_DIV4);
+#endif
 }
 
 void Sensor::init(uint8_t id, uint8_t gwId, const uint8_t *key, bool isRfm69Hw, bool write)
