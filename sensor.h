@@ -22,11 +22,14 @@ typedef void (*DataReceivedHandler)(const uint8_t *data, uint8_t length);
 class Sensor
 {
 public:
-#ifndef SENSOR_NO_DEFAULT_SPI
-  Sensor(bool useInterrupts = true);
-#else
-  Sensor(spiTransferFunction spiTransfer, bool useInterrupts = true);
+  Sensor(
+#ifdef SENSOR_NO_DEFAULT_SPI
+      spiTransferFunction spiTransfer
 #endif
+#ifndef SENSOR_NO_INTERRUPTS
+      bool useInterrupts = true
+#endif
+  );
 
   void init();
   void init(uint8_t id, uint8_t gwId, const uint8_t *key, bool isRfm69Hw = true, bool write = true);
@@ -44,7 +47,9 @@ public:
 #endif
 
 private:
+#ifndef SENSOR_NO_INTERRUPTS
   bool _useInterrupts;
+#endif
   RFM69 _radio;
   uint8_t _id, _gwId;
   RfmPacket _packet;

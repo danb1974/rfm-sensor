@@ -55,22 +55,36 @@ typedef enum
     Nack = 0x03,
 } MsgType;
 
+#ifndef SENSOR_NO_INTERRUPTS
 void radioInterrupt()
 {
     if (self)
         self->interrupt();
 }
-
-#ifndef SENSOR_NO_DEFAULT_SPI
-Sensor::Sensor(bool useInterrupts)
-    : _useInterrupts(useInterrupts),
-      _radio(spi_Transfer, millis)
-#else
-Sensor::Sensor(spiTransferFunction spiTransfer, bool useInterrupts)
-    : _useInterrupts(useInterrupts),
-      _radio(spiTransfer, millis)
 #endif
+
+Sensor::Sensor(
+#ifdef SENSOR_NO_DEFAULT_SPI
+    spiTransferFunction spiTransfer
+#endif
+#ifndef SENSOR_NO_INTERRUPTS
+#ifdef SENSOR_NO_DEFAULT_SPI
+    ,
+#endif
+    bool useInterrupts
+#endif
+    )
+    : _radio(
+#ifdef SENSOR_NO_DEFAULT_SPI
+          spiTransfer,
+#else
+          spi_Transfer,
+#endif
+          millis)
 {
+#ifndef SENSOR_NO_INTERRUPTS
+    _useInterrupts = useInterrupts;
+#endif
     _data = NULL;
     _size = 0;
     _retries = 0;
@@ -126,11 +140,13 @@ void Sensor::init(uint8_t id, uint8_t gwId, const uint8_t *key, bool isRfm69Hw, 
     _gwId = gwId;
     _radio.initialize(RF69_433MHZ, id, 1, isRfm69Hw);
 
+#ifndef SENSOR_NO_INTERRUPTS
     if (_useInterrupts)
     {
         self = this;
         attachInterrupt(0, radioInterrupt, RISING);
     }
+#endif
 
     if (key)
     {
@@ -174,7 +190,9 @@ void Sensor::interrupt()
 
 void Sensor::update()
 {
+#ifndef SENSOR_NO_INTERRUPTS
     if (!_useInterrupts)
+#endif
     {
         _packet.size = 0;
         _radio.receive(_packet);
