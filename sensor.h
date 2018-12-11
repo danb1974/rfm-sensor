@@ -31,8 +31,8 @@ public:
 #endif
   );
 
-  void init();
-  void init(uint8_t id, uint8_t gwId, const uint8_t *key, bool isRfm69Hw = true, bool write = true);
+  bool init();
+  bool init(uint8_t id, uint8_t gwId, const uint8_t *key, bool isRfm69Hw = true, bool write = true);
   void powerLevel(uint8_t level);
   void interrupt();
   void update();

@@ -105,7 +105,7 @@ Sensor::Sensor(
 #endif
 }
 
-void Sensor::init(uint8_t id, uint8_t gwId, const uint8_t *key, bool isRfm69Hw, bool write)
+bool Sensor::init(uint8_t id, uint8_t gwId, const uint8_t *key, bool isRfm69Hw, bool write)
 {
     if (write)
     {
@@ -138,7 +138,7 @@ void Sensor::init(uint8_t id, uint8_t gwId, const uint8_t *key, bool isRfm69Hw, 
 
     _id = id;
     _gwId = gwId;
-    _radio.initialize(RF69_433MHZ, id, 1, isRfm69Hw);
+    bool inited = _radio.initialize(RF69_433MHZ, id, 1, isRfm69Hw);
 
 #ifndef SENSOR_NO_INTERRUPTS
     if (_useInterrupts)
@@ -152,6 +152,8 @@ void Sensor::init(uint8_t id, uint8_t gwId, const uint8_t *key, bool isRfm69Hw, 
     {
         _radio.encrypt(key);
     }
+
+    return inited;
 }
 
 void Sensor::powerLevel(uint8_t level)
@@ -159,7 +161,7 @@ void Sensor::powerLevel(uint8_t level)
     _radio.setPowerLevel(level);
 }
 
-void Sensor::init()
+bool Sensor::init()
 {
     bool flashReadFailed = true;
     Config config;
@@ -179,11 +181,11 @@ void Sensor::init()
 
     if (config.magicKey == CONFIG_MAGIC_KEY)
     {
-        init(config.id, config.gwId, config.key, (config.flags & CONFIG_FLAG_IS_HW) != 0, flashReadFailed);
+        return init(config.id, config.gwId, config.key, (config.flags & CONFIG_FLAG_IS_HW) != 0, flashReadFailed);
     }
     else
     {
-        init(2, 1, NULL, false);
+        return init(2, 1, NULL, false);
     }
 }
 
