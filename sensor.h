@@ -17,7 +17,7 @@
 #define CONFIG_FLASH_ADDRESS (CONFIG_FLASH_SIZE - 4096UL)
 #endif
 
-typedef void (*DataReceivedHandler)(const uint8_t *data, uint8_t length);
+typedef void (*DataReceivedHandler)(const uint8_t *data, uint8_t length, uint8_t rssi);
 
 class Sensor
 {
@@ -33,6 +33,7 @@ public:
 
   void init();
   void init(uint8_t id, uint8_t gwId, const uint8_t *key, bool isRfm69Hw = true, bool write = true);
+  void powerLevel(uint8_t level);
   void interrupt();
   void update();
   bool send(const uint8_t *data, uint8_t size);

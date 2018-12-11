@@ -154,6 +154,11 @@ void Sensor::init(uint8_t id, uint8_t gwId, const uint8_t *key, bool isRfm69Hw, 
     }
 }
 
+void Sensor::powerLevel(uint8_t level)
+{
+    _radio.setPowerLevel(level);
+}
+
 void Sensor::init()
 {
     bool flashReadFailed = true;
@@ -427,7 +432,7 @@ void Sensor::handlePacket(const uint8_t *data, uint8_t size)
     break;
     default:
         if (_handler)
-            _handler(data, size);
+            _handler(data, size, _packet.rssi);
         break;
     }
 }
