@@ -136,7 +136,7 @@ bool Sensor::init(uint8_t id, uint8_t gwId, const uint8_t *key, bool isRfm69Hw, 
         else
 #endif
         {
-            eeprom_write_block(&config, 0, sizeof(config));
+            eeprom_update_block(&config, 0, sizeof(config));
         }
     }
 
