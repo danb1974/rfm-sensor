@@ -6,6 +6,10 @@
 #include "SPIFlash.h"
 #endif
 
+#ifndef SENSOR_NO_DEFAULT_SPI
+#include "SPI.h"
+#endif
+
 #ifndef SENSOR_NO_SLEEP
 #include <LowPower.h>
 #endif
@@ -163,15 +167,21 @@ void Sensor::powerLevel(uint8_t level)
 
 bool Sensor::init()
 {
-    bool flashReadFailed = true;
     Config config;
 
 #ifndef SENSOR_NO_OTA
+    bool flashReadFailed = true;
     if (flash.initialize())
     {
         flash.readBytes(CONFIG_FLASH_ADDRESS, &config, sizeof(config));
         flashReadFailed = config.magicKey != CONFIG_MAGIC_KEY;
     }
+    else
+    {
+        flashReadFailed = false;
+    }
+#else
+    bool flashReadFailed = false;
 #endif
 
     if (flashReadFailed)
