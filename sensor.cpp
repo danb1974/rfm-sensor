@@ -113,7 +113,8 @@ bool Sensor::init(uint8_t id, uint8_t gwId, const uint8_t *key, bool isRfm69Hw, 
 {
     if (write)
     {
-        Config config;
+        Config config, oldConfig;
+
         config.magicKey = CONFIG_MAGIC_KEY;
         config.id = id;
         config.gwId = gwId;
@@ -123,20 +124,28 @@ bool Sensor::init(uint8_t id, uint8_t gwId, const uint8_t *key, bool isRfm69Hw, 
 #ifndef SENSOR_NO_OTA
         if (flash.initialize())
         {
-            flash.blockErase4K(CONFIG_FLASH_ADDRESS);
-            while (flash.busy())
-            {
+            flash.readBytes(CONFIG_FLASH_ADDRESS, &oldConfig, sizeof(Config));
+            if (memcmp(&config, &oldConfig, sizeof(Config)) != 0) {
+                flash.blockErase4K(CONFIG_FLASH_ADDRESS);
+                while (flash.busy())
+                {
+                }
+
+                flash.writeBytes(CONFIG_FLASH_ADDRESS, &config, sizeof(Config));
+                while (flash.busy())
+                {
+                }
+
+                flash.sleep();
             }
-            flash.writeBytes(CONFIG_FLASH_ADDRESS, &config, sizeof(config));
-            while (flash.busy())
-            {
-            }
-            flash.sleep();
         }
         else
 #endif
         {
-            eeprom_update_block(&config, 0, sizeof(config));
+            eeprom_read_block(&oldConfig, 0, sizeof(Config));
+            if (memcmp(&config, &oldConfig, sizeof(Config)) != 0) {
+                eeprom_update_block(&config, 0, sizeof(Config));
+            }
         }
     }
 
