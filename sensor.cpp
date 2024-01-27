@@ -151,7 +151,11 @@ bool Sensor::init(uint8_t id, uint8_t gwId, const uint8_t *key, bool isRfm69Hw, 
 
     _id = id;
     _gwId = gwId;
-    bool inited = _radio.initialize(RF69_433MHZ, id, 1, isRfm69Hw);
+
+    if (!_radio.initialize(RF69_433MHZ, id, 1, isRfm69Hw)) 
+    {
+        return false;
+    }
 
 #ifndef SENSOR_NO_INTERRUPTS
     if (_useInterrupts)
@@ -166,7 +170,7 @@ bool Sensor::init(uint8_t id, uint8_t gwId, const uint8_t *key, bool isRfm69Hw, 
         _radio.encrypt(key);
     }
 
-    return inited;
+    return true;
 }
 
 void Sensor::powerLevel(uint8_t level)
@@ -180,6 +184,7 @@ bool Sensor::init()
 
 #ifndef SENSOR_NO_OTA
     bool flashReadFailed = true;
+    
     if (flash.initialize())
     {
         flash.readBytes(CONFIG_FLASH_ADDRESS, &config, sizeof(config));
@@ -204,7 +209,7 @@ bool Sensor::init()
     }
     else
     {
-        return init(99, 1, NULL, false);
+        return false;
     }
 }
 
