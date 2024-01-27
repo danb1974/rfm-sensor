@@ -118,8 +118,11 @@ bool Sensor::init(uint8_t id, uint8_t gwId, const uint8_t *key, bool isRfm69Hw, 
         config.magicKey = CONFIG_MAGIC_KEY;
         config.id = id;
         config.gwId = gwId;
-        config.flags = isRfm69Hw ? CONFIG_FLAG_IS_HW : 0;
-        memcpy(config.key, key, 16);
+
+        config.flags = 0;
+        if (isRfm69Hw) config.flags |= CONFIG_FLAG_IS_HW;
+
+        memcpy(config.key, key, sizeof(config.key));
 
 #ifndef SENSOR_NO_OTA
         if (flash.initialize())
@@ -144,7 +147,7 @@ bool Sensor::init(uint8_t id, uint8_t gwId, const uint8_t *key, bool isRfm69Hw, 
         {
             eeprom_read_block(&oldConfig, 0, sizeof(Config));
             if (memcmp(&config, &oldConfig, sizeof(Config)) != 0) {
-                eeprom_update_block(&config, 0, sizeof(Config));
+                eeprom_write_block(&config, 0, sizeof(Config));
             }
         }
     }
