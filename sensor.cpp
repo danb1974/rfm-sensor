@@ -204,7 +204,7 @@ bool Sensor::init()
     }
     else
     {
-        return init(2, 1, NULL, false);
+        return init(99, 1, NULL, false);
     }
 }
 
