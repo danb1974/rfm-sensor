@@ -207,10 +207,8 @@ bool Sensor::init()
     {
         return init(config.id, config.gwId, config.key, (config.flags & CONFIG_FLAG_IS_HW) != 0, flashReadFailed);
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 void Sensor::interrupt()
