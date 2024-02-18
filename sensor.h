@@ -1,7 +1,7 @@
 #ifndef __SENSOR_H__
 #define __SENSOR_H__
 
-#include <Rfm69.h>
+#include <RFM69.h>
 
 #ifndef SEND_RETRIES
 #define SEND_RETRIES 5
